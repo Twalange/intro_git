@@ -1,0 +1,394 @@
+---
+title: "Introduction à Git et GitHub"
+author: "Master ENSD"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    highlight: textmate
+---
+
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #24292f;
+  line-height: 1.6;
+}
+
+.main-container {
+  max-width: 1100px;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  color: #24292f;
+}
+
+h1 {
+  border-bottom: 2px solid #0969da;
+  padding-bottom: 0.3em;
+}
+
+h2 {
+  border-bottom: 1px solid #d0d7de;
+  padding-bottom: 0.2em;
+}
+
+.main-container p,
+.main-container li {
+  text-align: justify;
+}
+
+#TOC {
+  font-size: 0.95em;
+}
+
+#TOC a {
+  color: #0969da;
+}
+
+pre {
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background-color: #f6f8fa;
+}
+
+code {
+  color: #24292f;
+}
+
+p code,
+li code {
+  background-color: #eff1f3;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+a {
+  color: #0969da;
+}
+
+a:hover {
+  color: #0550ae;
+}
+</style>
+
+# Section 1 - Qu'est-ce que Git ?
+
+## 1.1 - Une courte histoire
+
+Git a été créé en 2005 par Linus Torvalds pour répondre à un problème très concret : coordonner les contributions de milliers de développeurs au noyau Linux, après que l'outil utilisé jusque-là (BitKeeper) a cessé d'être disponible gratuitement. Ses objectifs initiaux étaient d'être rapide, facile à prendre en main, capable de gérer de gros projets, de permettre un développement distribué et de travailler sur plusieurs versions en parallèle.
+
+Ces problèmes — beaucoup de fichiers, beaucoup de modifications, plusieurs contributeurs, besoin de retrouver l'historique — sont finalement très proches de ceux d'une analyse de données. Git est aujourd'hui l'outil de référence pour le développement logiciel, et plus largement pour tout travail impliquant du code : une enquête Stack Overflow de 2022 indiquait que 94 % des répondants utilisant un système de gestion de versions utilisaient Git.
+
+## 1.2 - À quoi sert Git ?
+
+Un projet d'analyse de données comprend rarement un seul fichier : données, scripts, notebooks, résultats, documents. Sans outil de suivi, on se retrouve vite avec des fichiers comme `questionnaire_v13_finale.xlsx`, sans savoir quelle est la dernière version, ce qui a changé, ni pourquoi.
+
+Git résout ce problème en enregistrant l'historique complet d'un projet sous forme d'**instantanés successifs**, appelés **commits**, plutôt qu'en multipliant les copies de fichiers :
+
+```text
+Je modifie mes fichiers → je sélectionne les changements → je crée un commit → Git enregistre la nouvelle version
+```
+
+Cela permet de comparer des versions, revenir en arrière, comprendre qui a fait quoi et quand. Git n'est cependant pas suffisant à lui seul pour garantir la reproductibilité d'une analyse : il ne conserve pas automatiquement les données ni l'environnement logiciel utilisé. C'est un outil de traçabilité, pas une solution complète.
+
+Git présente quatre avantages principaux : il permet de **revenir en arrière** à tout moment ; il permet de **travailler à plusieurs** sur un même projet ; il est **distribué** (l'historique complet est disponible localement, sans connexion Internet) ; et il est particulièrement efficace avec des **fichiers texte** (scripts, Markdown), mais mal adapté aux fichiers volumineux ou binaires (vidéos, grosses bases de données).
+
+## 1.3 - Git n'est pas GitHub
+
+**Git** est le logiciel qui gère l'historique des versions. **GitHub** (comme GitLab) est un service en ligne permettant d'héberger des dépôts Git à distance et de collaborer autour d'eux. On peut utiliser Git sans GitHub :
+
+```text
+Ordinateur                              GitHub
+┌─────────────────┐                    ┌─────────────────┐
+│ dépôt local     │  ─── `push` ──►    │ dépôt distant   │
+│ fichiers        │                    │ fichiers        │
+│ + historique Git│  ◄── `pull` ───    │ + historique Git│
+└─────────────────┘                    └─────────────────┘
+```
+
+Dans la suite du cours, nous verrons comment organiser un projet, utiliser Git pour en conserver l'historique, puis synchroniser ce travail avec GitHub.
+
+# Section 2 - Organiser un projet d'analyse de données
+
+Il n'existe pas de structure universelle obligatoire, mais préfèrez une organisation cohérente et prévisible, compréhensible intuitivement par quelqu'un d'autre. Voici la structure que j'utilise dans la plupart de mes projets en R :
+
+```text
+mon-projet/
+├── README.md                               # Présentation du projet
+├── .gitignore                              # Fichiers à ne pas versionner
+├── .Rprofile, .RData, .Rhistory            # Environnement R
+│
+├── data/
+│   ├── raw/                                # Données brutes, à ne jamais modifier
+│   └── clean/                              # Données nettoyées ou transformées
+│
+├── scripts/                                # Scripts de nettoyage, recodage, etc.
+├── notebooks/                              # Analyses : code + texte explicatif
+├── output/                          v      # Résultats produits par les analyses
+│   ├── figures/
+│   └── tables/
+└── docs/                                   # Documents complémentaires
+```
+
+Cette séparation n'est pas obligatoire et peut varier selon les projets. Le point important à retenir : le dossier `raw/` ne se modifie jamais directement — les transformations sont réalisées par du code et produisent de nouvelles données dans `clean/`. Cela limite les risques d'erreur et permet de repartir de zéro en cas de problème.
+
+# Section 3 - Le dépôt Git et le cycle de travail local
+
+## 3.1 - Installer et configurer Git
+
+Git se télécharge depuis le site officiel (https://git-scm.com/install/), avec des instructions selon le système d'exploitation, ou via Conda si vous l'utilisez déjà : `conda install git`
+
+Pour vérifier l'installation : `git --version` — et pour savoir quel exécutable est utilisé : `which git` (macOS/Linux) ou `where git` (Windows).
+
+Git associe chaque commit à un auteur ; il faut donc configurer son identité une fois pour toutes (`--global` l'applique à tous les dépôts de l'ordinateur) :
+
+```text
+git config --global user.name "Prénom Nom"
+git config --global user.email "email@example.com"
+git config --global init.defaultBranch "main"
+```
+
+La dernière commande fixe le nom de la branche initiale à `main`, convention la plus courante aujourd'hui (historiquement `master`). Pour vérifier sa configuration : `git config --list`
+
+## 3.2 - Initialiser un dépôt
+
+Depuis un dossier de projet existant : `git init`
+
+Git crée alors un dossier caché `.git/`, qui contient tout ce qui est nécessaire au suivi des versions (historique, branches, configuration). Ce dossier ne doit jamais être modifié ou supprimé manuellement. À partir de ce moment, le dossier devient un **dépôt Git** (repository).
+
+## 3.3 - README et .gitignore
+
+Le fichier **README.md** est le point d'entrée du projet : il doit permettre à quelqu'un qui le découvre de comprendre rapidement le sujet, les données utilisées, l'organisation du projet et comment reproduire les résultats.
+
+Le fichier **.gitignore** indique à Git quels fichiers ne jamais suivre : données confidentielles, fichiers temporaires, mots de passe et clés API, fichiers propres à votre environnement de travail. Un projet Git ne doit pas devenir un endroit où l'on met indistinctement tous ses fichiers ; faites attention à ce que vous voulez versionner.  
+
+```text
+data/
+*.tmp
+.Rhistory
+.RData
+.venv/
+```
+
+**ATTENTION**: Si un fichier a déjà été commité, l'ajouter ensuite au `.gitignore` ne suffit pas à le retirer de l'historique — vérifiez toujours ce que vous ajoutez avant de commiter, surtout si le dépôt est public. Des modèles de `.gitignore` par langage sont disponibles sur https://github.com/github/gitignore.
+
+## 3.4 - Le commit et les états d'un fichier
+
+Un **commit** est un instantané enregistré du projet, accompagné d'un message décrivant ce qui a changé. Chaque commit est relié au précédent, ce qui permet à Git de reconstituer l'historique et d'y revenir si nécessaire.
+
+Avant d'être commité, un fichier passe par plusieurs états :
+
+```text
+Untracked → (git add) → Staged → (git commit) → Unchanged → (modification) → Modified → (git add) → Staged...
+```
+
+- **Untracked** : Git connaît le fichier mais ne le suit pas encore.
+- **Modified** : le fichier a changé depuis le dernier commit, mais n'est pas encore prêt à être enregistré.
+- **Staged** : les modifications sont placées dans la zone de préparation (staging area), prêtes pour le prochain commit.
+- **Unchanged** : le fichier correspond exactement au dernier commit.
+
+En pratique :
+
+```text
+git add .              # ajoute tout (hors .gitignore)
+git add README.md      # ou un fichier précis
+git commit -m "Initialisation du projet"
+```
+
+On peut consulter l'historique avec `git log`, qui affiche par exemple `a31f92c Initialisation du projet` (l'identifiant est le début de l'identifiant unique du commit).
+
+## 3.5 - Le cycle de travail quotidien
+
+```text
+Modifier → git status → git add → git commit
+```
+
+La commande la plus utile au quotidien est `git status`, qui indique l'état de chaque fichier (untracked, staged, modified, ou rien à commiter). Elle doit devenir un réflexe avant chaque `git add`.
+
+Il est préférable de créer plusieurs petits commits correspondant chacun à une évolution identifiable, plutôt qu'un seul commit massif regroupant plusieurs jours de travail. Un bon message de commit doit permettre de comprendre ce qui a changé sans ouvrir les fichiers — par exemple *"Correction des calculs de corrélations"* plutôt que *"update"*.
+
+## 3.6 - Annuler des modifications
+
+| Situation | Commande |
+|---|---|
+| Abandonner une modification non commitée | `git restore README.md` (ou `git restore .` pour tout) |
+| Retirer un fichier de la zone de préparation | `git restore --staged README.md` |
+| Consulter un ancien commit sans changer de branche | `git switch -d <identifiant-du-commit>` |
+
+La dernière commande place Git dans un état de **HEAD détaché** : les fichiers correspondent au commit consulté, mais il n'est plus possible de commit sur la branche `main` dans cet état. Utile pour inspecter une version antérieure ; pour continuer à développer à partir de là, il faut créer une nouvelle branche.
+
+**ATTENTION**: `git restore` efface définitivement les modifications non commitées — vérifiez avec `git diff` avant de l'utiliser.
+
+## 3.7 - Mettre de côté son travail
+
+Il arrive d'être en train de modifier des fichiers, sans avoir un travail assez abouti pour commiter, et d'avoir pourtant besoin de changer de branche (par exemple pour corriger un bug urgent). Git refuse alors généralement de changer de branche. `git stash` met ces modifications de côté temporairement, sans créer de commit :
+
+| Commande | Effet |
+|---|---|
+| `git stash` | Met de côté les modifications en cours |
+| `git stash list` | Liste les stash existants |
+| `git stash pop` | Réapplique le dernier stash et le supprime de la liste |
+| `git stash drop` | Supprime un stash sans le réappliquer |
+
+Comme lors d'une fusion, un conflit peut apparaître au moment du `pop` si le fichier a aussi été modifié sur la branche depuis la création du stash — il se résout de la même manière (voir 4.3).
+
+# Section 4 - Branches et fusion
+
+## 4.1 - Les branches
+
+Une **branche** est une ligne de développement indépendante, qui permet de travailler sur une modification sans toucher à la branche principale (`main`). Les branches partagent le même historique jusqu'au point où elles divergent :
+
+```text
+          —— C     Analyse A
+        /
+A —— B             main
+        \
+          —— D     Analyse B
+```
+
+```text
+git switch -c analyse     # crée la branche "analyse" et s'y positionne
+git branch                # liste les branches (* = branche active)
+git switch main           # revient sur main
+```
+
+La branche `main` reste inchangée pendant que le travail se poursuit sur `analyse`.
+
+## 4.2 - Fusionner son travail
+
+Une fois le travail terminé, on peut intégrer les commits d'une branche dans une autre — c'est une **fusion** (merge). Pour intégrer `analyse` dans `main` :
+
+```text
+git switch main
+git merge analyse
+```
+
+Visuellement:
+```text
+          —— D              Analyse A
+        /      \
+A —— B           F —— G     main
+        \            /
+          —— E  ————        Analyse B
+```
+
+Git réalise cette fusion automatiquement quand c'est possible. Pour comparer deux branches avant de fusionner : `git diff branchB...branchA`
+
+## 4.3 - Les conflits
+
+Un conflit survient quand deux branches ont modifié la même partie d'un même fichier de manière incompatible. Git ne peut pas choisir automatiquement et insère des marqueurs dans le fichier concerné :
+
+```text
+<<<<<<< Analyse A
+Cette analyse porte sur les données de population françaises.
+=======
+Cette analyse porte sur les données de population allemandes.
+>>>>>>> Analyse B
+```
+
+Il faut alors ouvrir le fichier, choisir (ou combiner) la bonne version, supprimer les marqueurs, puis :
+
+```text
+git add README.md
+git commit -m "Résout le conflit lors de la fusion"
+```
+
+Visuellement:
+```text
+          —— D                   Analyse A
+        /      \
+A —— B           F —— G —— H     main
+        \            /
+          —— E  ————             Analyse B
+```
+
+Un conflit n'est pas une erreur : c'est simplement Git qui a besoin d'une décision humaine pour combiner deux modifications incompatibles.
+
+# Section 5 - Travailler avec un dépôt distant
+
+Jusqu'ici, tout s'est passé sur votre ordinateur. Un **dépôt distant** (remote), par exemple sur GitHub, est une autre copie du dépôt, généralement hébergée sur un serveur — utile en cas de panne et indispensable pour collaborer :
+
+```text
+Ordinateur                              GitHub
+┌─────────────────┐                    ┌─────────────────┐
+│ dépôt local     │  ─── `push` ──►    │ dépôt distant   │
+│                 │  ◄── `pull` ───    │                 │
+└─────────────────┘                    └─────────────────┘
+```
+
+## 5.1 - Connecter un projet local à GitHub
+
+Après avoir créé un compte sur https://github.com/ et un nouveau dépôt distant (*New repository*), on récupère son URL (ex. `https://github.com/mon-utilisateur/analyse.git`) et on l'associe au dépôt local :
+
+```text
+git remote add origin URL-DU-DEPOT
+git remote -v                        # vérifie la configuration
+git branch -M main
+git push -u origin main
+```
+
+Une boîte de dialogue de connexion peut apparaître ; utilisez de préférence le Git Credential Manager.
+
+## 5.2 - Récupérer un projet existant
+
+Le plus souvent, un projet existe déjà sur un dépôt distant : on le récupère avec `git clone <URL-DU-DEPOT>`. Git crée alors un dossier contenant le projet **et** son historique complet.
+
+## 5.3 - Synchroniser et travailler en équipe
+
+`git pull` récupère les modifications du dépôt distant ; `git push` y envoie les commits locaux. Il est essentiel de ne pas travailler directement sur `main`, mais sur des branches dédiées, afin de limiter les conflits et de permettre une relecture avant intégration :
+
+```text
+git pull
+git switch -c analyse
+# modifier, git status, git add, git commit
+git push -u origin analyse
+# créer une Pull Request
+```
+
+## 5.4 - Pull Requests et Issues
+
+Une **Pull Request** (ou Merge Request) propose l'intégration d'une branche dans `main` : elle permet aux autres membres de l'équipe de relire le code, commenter et valider avant fusion. Elle précise une branche source, une branche cible, une description des changements et les commits associés.
+
+Les **Issues** permettent de son côté de suivre les tâches, bugs et demandes d'évolution directement depuis la plateforme, et peuvent être reliées à des branches et des Pull Requests.
+
+# Section 6 - Git avec RStudio et JupyterLab
+
+## 6.1 - Git avec RStudio
+
+Avant de commencer, connectez RStudio à Git : *Tools > Global Options… > Git/SVN*, en collant le chemin obtenu via `where git` / `which git`.
+
+Deux méthodes permettent ensuite d'authentifier RStudio auprès de GitHub — un **jeton d'accès personnel (PAT)** en HTTPS, plus simple et recommandé par défaut, ou une **clé SSH**.
+
+**Méthode PAT (recommandée)**, directement depuis la console R :
+
+```r
+usethis::create_github_token()   # ouvre GitHub pour générer le token
+gitcreds::gitcreds_set()          # colle le token pour l'enregistrer localement
+usethis::git_sitrep()             # vérifie la configuration
+```
+
+Le token doit être copié immédiatement (il ne sera plus jamais affiché) et peut se voir attribuer une durée d'expiration ; GitHub envoie un rappel avant qu'il n'expire.
+
+**Méthode SSH (alternative)** :
+1. *Tools > Global Options… > Git/SVN* → *Create RSA Key…*, puis *View public key*.
+2. Sur GitHub : avatar → *SSH and GPG keys* → *New SSH key*, coller la clé.
+3. Vérifiez que l'e-mail de `git config --global user.email` correspond à celui de votre compte GitHub.
+
+Pour lier un nouveau projet : *File > New Project… > Version Control > Git*, en renseignant l'URL du dépôt (HTTPS ou SSH selon la méthode choisie). Pour un projet RStudio existant, exécutez `usethis::use_git()`, puis dans le Shell de l'onglet Git : `git remote add origin URL-DU-DEPOT`, `git branch -M main`, `git push -u origin main`.
+
+L'onglet **Git** affiche en temps réel le statut des fichiers (? non suivi, A ajouté, M modifié, D supprimé, U en conflit). Cocher les fichiers puis cliquer sur *Commit* ouvre une fenêtre pour rédiger le message et voir les modifications ; les flèches bleue/verte permettent de pull/push, et un onglet *History* affiche l'historique. Créer et changer de branche se fait via le bouton dédié.
+
+## 6.2 - Git avec JupyterLab
+
+L'extension s'installe via `pip install --upgrade jupyterlab jupyterlab-git` (après avoir installé et configuré Git, idéalement via `conda install git`).
+
+Lors du premier `push` en HTTPS, Git demandera votre identifiant GitHub et un **jeton d'accès personnel** (à créer sur github.com → *Settings > Developer settings > Personal access tokens*) à la place du mot de passe. Un gestionnaire d'identifiants (Git Credential Manager) permet de mémoriser ce jeton pour éviter de le ressaisir à chaque opération.
+
+Un onglet **Git** apparaît alors dans la barre d'outils : il affiche le statut des fichiers dans `Changes`, et permet de pull/push, consulter l'historique, créer une branche, en changer, et effectuer un merge — directement depuis l'interface graphique.
